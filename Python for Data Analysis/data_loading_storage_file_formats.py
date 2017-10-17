@@ -39,3 +39,40 @@ def _unpack(row, kind='td'):
     return [val.text_content() for val in elts]
 
 _unpack(rows[1], kind='th')
+
+from pandas.io.parsers import TextParser
+
+def parse_options_data(table):
+    rows = table.findall('.//tr')
+    header = _unpack(rows[0], kind='th')
+    data = [_unpack(r) for r in rows[1:]]
+    return TextParser(data, names=header).get_chunk()
+
+call_data = parse_options_data(calls)
+put_data = parse_options_data(puts)
+
+# Interacting with Databases
+import sqlite3
+query = """
+CREATE TABLE test
+(a VARCHAR(20), b VARCHAR(20),
+c REAL, d INTEGER);
+"""
+
+con = sqlite3.connect(':memory:')
+con.execute(query)
+con.commit()
+
+data = [('Atlanta', 'Georgia', 1.25, 6),
+        ('Tallahassee', 'Florida', 2.6, 3),
+        ('Sarcramento', 'California', 1.7, 5)]
+stmt = "INSERT INTO test VALUES(?, ?, ?, ?)"
+
+con.executemany(stmt, data)
+con.commit()
+
+cursor = con.execute("select * from test")
+rows = cursor.fetchall()
+
+DataFrame(rows, columns=zip(*cursor.description)[0])
+pd.read_sql('select * from test', con)
